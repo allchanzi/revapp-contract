@@ -70,6 +70,7 @@ contract RevApp{ // is GSNRecipient{
   struct Product {
     string fileId;
     uint[] reviewIds;
+    mapping(address => uint) payed;
   }
 
   // maps id to Review
@@ -157,9 +158,9 @@ contract RevApp{ // is GSNRecipient{
 
   function getReviewIdsForProduct(string memory _Product) view public returns (uint[] memory) {
     //Check if EAN given (only 13 number accepting for now)
-    if (checkEAN(_Product)) {
-      return Products[_Product].reviewIds;
-    }
+    if (checkEAN(_Product) && checkPayment(_Product, msg.sender)) {
+          return Products[_Product].reviewIds;
+      }
     //Return 0 as error code, invalid product
     uint[] memory res = new uint[](1);
     res[0] = 0;
@@ -176,6 +177,12 @@ contract RevApp{ // is GSNRecipient{
   }
 
   function getReviewIdsForProductByPage(string memory _Product, uint _Page, uint _PageSize) view public returns (uint[] memory) {
+    if (!checkEAN(_Product) || !checkPayment(_Product, msg.sender)){
+      //Return 0 as error code, invalid product
+      uint[] memory res = new uint[](1);
+      res[0] = 0;
+      return res;
+    }
     if (Products[_Product].reviewIds.length < _PageSize && _Page == 0) {
       return Products[_Product].reviewIds;
     }
@@ -212,6 +219,12 @@ contract RevApp{ // is GSNRecipient{
       return true;
     }
     return false;
+  }
+
+  function payForReviews(string memory _Product) external payable {
+    if(msg.value > 0.000000002 ether) {
+      Products[_Product].payed[msg.sender] = 1;
+    }
   }
 
   // helper functions
@@ -265,6 +278,13 @@ contract RevApp{ // is GSNRecipient{
       return true;
     }
     return false;
+  }
+
+  function checkPayment(string memory _Product, address _User) view public returns (bool){
+    if (Products[_Product].reviewIds.length > 9 && Products[_Product].payed[_User] == 0){
+      return false;
+    }
+    return true;
   }
 
 //GSN
